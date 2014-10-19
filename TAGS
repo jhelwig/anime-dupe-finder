@@ -1,3 +1,73 @@
 
-src/main.rs,21
-fn main() {main1,0
+src/main.rs,1503
+enum SeasonNum {SeasonNum14,248
+enum EpisodeNum {EpisodeNum20,331
+enum SourceMedia {SourceMedia31,513
+struct AnimeFile {AnimeFile46,694
+impl AnimeFile {AnimeFile57,1014
+    pub fn new(file: String) -> Option<AnimeFile> {new58,1031
+impl PartialOrd for AnimeFile {PartialOrd for AnimeFile135,4310
+    fn partial_cmp(&self, other: &AnimeFile) -> Option<Ordering> {partial_cmp136,4342
+    fn lt(&self, other: &AnimeFile) -> bool {lt140,4469
+    fn le(&self, other: &AnimeFile) -> bool {le144,4566
+    fn gt(&self, other: &AnimeFile) -> bool {gt148,4663
+    fn ge(&self, other: &AnimeFile) -> bool {ge152,4760
+impl Ord for AnimeFile {Ord for AnimeFile157,4859
+    fn cmp(&self, other: &AnimeFile) -> Ordering {cmp158,4884
+fn animefile_sets_parts_for_episode() {animefile_sets_parts_for_episode164,4997
+fn animefile_sets_parts_for_trailer() {animefile_sets_parts_for_trailer184,5799
+fn animefile_sets_parts_for_closing() {animefile_sets_parts_for_closing204,6594
+fn animefile_sets_parts_for_opening() {animefile_sets_parts_for_opening224,7431
+fn animefile_sets_parts_for_special() {animefile_sets_parts_for_special244,8248
+fn animefile_sets_parts_for_version() {animefile_sets_parts_for_version264,9035
+fn main() {main283,9817
+fn scan_dir(dir: &Path) -> (Option<Vec<Path>>, Option<Vec<AnimeFile>>) {scan_dir352,11742
+fn print_usage(name: &str, opts: &[getopts::OptGroup]) {print_usage376,12535
+fn short_usage_str(name: &str) -> String {short_usage_str380,12671
+
+target/doc/glob/fn.glob.html,0
+
+target/doc/glob/fn.glob_with.html,0
+
+target/doc/glob/index.html,0
+
+target/doc/glob/stability.html,0
+
+target/doc/glob/struct.MatchOptions.html,0
+
+target/doc/glob/struct.Paths.html,0
+
+target/doc/glob/struct.Pattern.html,0
+
+target/doc/implementors/collections/hash/trait.Hash.js,0
+
+target/doc/implementors/core/clone/trait.Clone.js,0
+
+target/doc/implementors/core/cmp/trait.Eq.js,0
+
+target/doc/implementors/core/cmp/trait.Ord.js,0
+
+target/doc/implementors/core/cmp/trait.PartialEq.js,0
+
+target/doc/implementors/core/cmp/trait.PartialOrd.js,0
+
+target/doc/implementors/core/default/trait.Default.js,0
+
+target/doc/implementors/core/iter/trait.Iterator.js,0
+
+target/doc/jquery.js,0
+
+target/doc/main.js,325
+    var resizeTimeout, interval;resizeTimeout16,574
+    function getQueryStringParams() {getQueryStringParams20,651
+    function browserSupportsHistoryApi() {browserSupportsHistoryApi32,1058
+    function resizeShortBlocks() {resizeShortBlocks36,1189
+    function highlightSourceLines() {highlightSourceLines53,1790
+
+target/doc/playpen.js,0
+
+target/doc/search-index.js,3578
+searchIndex['anime-dupe-finder'] = {"items":[],"paths":[]};searchIndex.items2,22
+searchIndex['glob'] = {"items":[[0,"","glob","Support for matching file paths against Unix shell style patterns."],[1,"Paths","","An iterator that yields Paths from the filesystem that match a particular\npattern - see the `glob` function for more details."],[1,"Pattern","","A compiled Unix shell style pattern."],[1,"MatchOptions","","Configuration options to modify the behaviour of `Pattern::matches_with(..)`"],[11,"case_sensitive","","Whether or not patterns should be matched in a case-sensitive manner. This\ncurrently only considers upper/lower case relationships between ASCII characters,\nbut in future this might be extended to work with Unicode.",0],[11,"require_literal_separator","","If this is true then path-component separator characters (e.g. `/` on Posix)\nmust be matched by a literal `/`, rather than by `*` or `?` or `[...]`",0],[11,"require_literal_leading_dot","","If this is true then paths that contain components that start with a `.` will\nnot match unless the `.` appears literally in the pattern: `*`, `?` or `[...]`\nwill not match. This is useful because such files are conventionally considered\nhidden on Unix systems and it might be desirable to skip them when listing files.",0],[3,"glob","","Return an iterator that produces all the Paths that match the given pattern,\nwhich may be absolute or relative to the current working directory."],[3,"glob_with","","Return an iterator that produces all the Paths that match the given pattern,\nwhich may be absolute or relative to the current working directory."],[10,"next","","",1],[10,"default","","",2],[10,"hash","","",2],[10,"cmp","","",2],[10,"partial_cmp","","",2],[10,"lt","","",2],[10,"le","","",2],[10,"gt","","",2],[10,"ge","","",2],[10,"eq","","",2],[10,"ne","","",2],[10,"clone","","",2],[10,"new","","This function compiles Unix shell style patterns: `?` matches any single\ncharacter, `*` matches any (possibly empty) sequence of characters and\n`[...]` matches any character inside the brackets, unless the first\ncharacter is `!` in which case it matches any character except those\nbetween the `!` and the `]`. Character sequences can also specify ranges\nof characters, as ordered by Unicode, so e.g. `[0-9]` specifies any\ncharacter between 0 and 9 inclusive.",2],[10,"escape","","Escape metacharacters within the given string by surrounding them in\nbrackets. The resulting string will, when compiled into a `Pattern`,\nmatch the input string and nothing else.",2],[10,"matches","","Return if the given `str` matches this `Pattern` using the default\nmatch options (i.e. `MatchOptions::new()`).",2],[10,"matches_path","","Return if the given `Path`, when converted to a `str`, matches this `Pattern`\nusing the default match options (i.e. `MatchOptions::new()`).",2],[10,"matches_with","","Return if the given `str` matches this `Pattern` using the specified match options.",2],[10,"matches_path_with","","Return if the given `Path`, when converted to a `str`, matches this `Pattern`\nusing the specified match options.",2],[10,"default","","",0],[10,"hash","","",0],[10,"cmp","","",0],[10,"partial_cmp","","",0],[10,"lt","","",0],[10,"le","","",0],[10,"gt","","",0],[10,"ge","","",0],[10,"eq","","",0],[10,"ne","","",0],[10,"clone","","",0],[10,"new","","Constructs a new `MatchOptions` with default field values. This is used\nwhen calling functions that do not take an explicit `MatchOptions` parameter.",0]],"paths":[[1,"MatchOptions"],[1,"Paths"],[1,"Pattern"]]};searchIndex.items3,82
+
+target/doc/src/glob/Users/jacobh/.cargo/git/checkouts/glob-53436a21832a74ca/master/src/lib.rs.html,0
