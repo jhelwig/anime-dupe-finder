@@ -1,0 +1,5 @@
+[package]
+
+name = "anime-dupe-finder"
+version = "0.0.1"
+authors = ["Jacob Helwig <jacob@technosorcery.net>"]
