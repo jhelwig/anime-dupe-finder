@@ -73,7 +73,7 @@ impl AnimeFile {
         debug!("Matched version: |{}|", captures.name("version"));
 
         let title = String::from_str(captures.name("title"));
-        let season:  SeasonNum  = if captures.name("season")  == "" { NoSeason } else { Season(from_str(captures.name("season")).unwrap()) };
+        let season:  SeasonNum  = if captures.name("season")  == "" { NoSeason  } else { Season(from_str(captures.name("season")).unwrap()) };
         let episode: EpisodeNum = if captures.name("episode") == "" { NoEpisode } else {
             let ep_num: u16 = from_str(captures.name("episode")).unwrap();
             match captures.name("type") {
@@ -162,7 +162,7 @@ impl Ord for AnimeFile {
 
 #[test]
 fn animefile_sets_parts_for_episode() {
-    let file: String = String::from_str("Fairy Tail 2014 - S01E01 [www][1280x720.H264AVC.AAC][HorribleSubs](6a6129cd511d56c6080d50d68dcea5011600d7f4).mkv");
+    let file:  String = String::from_str("Fairy Tail 2014 - S01E01 [www][1280x720.H264AVC.AAC][HorribleSubs](6a6129cd511d56c6080d50d68dcea5011600d7f4).mkv");
     let title: String = String::from_str("Fairy Tail 2014");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
@@ -182,7 +182,7 @@ fn animefile_sets_parts_for_episode() {
 
 #[test]
 fn animefile_sets_parts_for_trailer() {
-    let file: String = String::from_str("Working`!! - S01ET9 [Blu-ray][1920x1080.H264AVC.FLAC][tlacatlc6](91938f8ec4d2affd2f5877279af7e6803b7abcf5).mkv");
+    let file:  String = String::from_str("Working`!! - S01ET9 [Blu-ray][1920x1080.H264AVC.FLAC][tlacatlc6](91938f8ec4d2affd2f5877279af7e6803b7abcf5).mkv");
     let title: String = String::from_str("Working`!!");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
@@ -202,7 +202,7 @@ fn animefile_sets_parts_for_trailer() {
 
 #[test]
 fn animefile_sets_parts_for_closing() {
-    let file: String = String::from_str("Zero no Tsukaima Princess no Rondo - S01EC2 [Blu-ray][1280x720.H264AVC.FLAC][Doki](bea85424422dd1465d0758b051991966eeca6574).mkv");
+    let file:  String = String::from_str("Zero no Tsukaima Princess no Rondo - S01EC2 [Blu-ray][1280x720.H264AVC.FLAC][Doki](bea85424422dd1465d0758b051991966eeca6574).mkv");
     let title: String = String::from_str("Zero no Tsukaima Princess no Rondo");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
@@ -222,7 +222,7 @@ fn animefile_sets_parts_for_closing() {
 
 #[test]
 fn animefile_sets_parts_for_opening() {
-    let file: String = String::from_str("The Garden of Sinners - S01EO7 [Blu-ray][1920x1080.H264AVC.FLAC][Coalgirls](8e28f917be6423ce5ee4deee1369eb4e2eb02e48).mkv");
+    let file:  String = String::from_str("The Garden of Sinners - S01EO7 [Blu-ray][1920x1080.H264AVC.FLAC][Coalgirls](8e28f917be6423ce5ee4deee1369eb4e2eb02e48).mkv");
     let title: String = String::from_str("The Garden of Sinners");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
@@ -242,7 +242,7 @@ fn animefile_sets_parts_for_opening() {
 
 #[test]
 fn animefile_sets_parts_for_special() {
-    let file: String = String::from_str("Texhnolyze - S01ES5 [DVD][704x396.XviD.Vorbis Ogg Vorbis_][V-A](d6175eabce82902d23446af3574fdd87286368c6).mkv");
+    let file:  String = String::from_str("Texhnolyze - S01ES5 [DVD][704x396.XviD.Vorbis Ogg Vorbis_][V-A](d6175eabce82902d23446af3574fdd87286368c6).mkv");
     let title: String = String::from_str("Texhnolyze");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
@@ -257,7 +257,7 @@ fn animefile_sets_parts_for_special() {
     assert_eq!(DVD,          af.source_media);
     assert_eq!(Some(704u64), af.resolution_width);
     assert_eq!(Some(396u64), af.resolution_height);
-    assert_eq!(1u8,           af.version);
+    assert_eq!(1u8,          af.version);
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn main() {
     ];
 
     let matches = match getopts::getopts(args.tail(), opts) {
-        Ok(m) => { m }
+        Ok(m)  => { m }
         Err(f) => {
             println!("ERROR: {}", f.to_string());
             print_usage(program_name, opts);
@@ -334,7 +334,7 @@ fn main() {
         let (new_dirs, new_files) = scan_dir(&current_dir);
 
         match new_dirs {
-            None => {},
+            None       => {},
             Some(dirs) => {
                 dirs_to_search.push_all(dirs.as_slice().clone());
                 dirs_to_search.sort();
@@ -343,7 +343,7 @@ fn main() {
         };
 
         match new_files {
-            None => {},
+            None        => {},
             Some(files) => { info!("Found some files in: {}", current_dir.display()) },
         };
     }
@@ -359,7 +359,7 @@ fn scan_dir(dir: &Path) -> (Option<Vec<Path>>, Option<Vec<AnimeFile>>) {
             new_dirs.push(path);
         } else if path.is_file() {
             let anime_file = match AnimeFile::new(String::from_str(path.as_str().unwrap())) {
-                None => continue,
+                None    => continue,
                 Some(a) => a,
             };
             new_files.push(anime_file);
