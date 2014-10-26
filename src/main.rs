@@ -9,14 +9,15 @@ extern crate regex;
 
 use std::os;
 use std::io::fs::PathExtensions;
+use std::collections::HashMap;
 
-#[deriving(Show, PartialEq, Eq)]
+#[deriving(Show, PartialEq, Eq, Clone)]
 enum SeasonNum {
     Season(u8),
     NoSeason,
 }
 
-#[deriving(Show, PartialEq, Eq)]
+#[deriving(Show, PartialEq, Eq, Clone)]
 enum EpisodeNum {
     Episode(u16),
     Opening(u16),
@@ -27,7 +28,7 @@ enum EpisodeNum {
     NoEpisode,
 }
 
-#[deriving(Show, PartialEq, Eq)]
+#[deriving(Show, PartialEq, Eq, Clone)]
 enum SourceMedia {
     BluRay,
     DVD,
@@ -42,7 +43,7 @@ enum SourceMedia {
     UnknownMedia,
 }
 
-#[deriving(Show, PartialEq, Eq)]
+#[deriving(Show, PartialEq, Eq, Clone)]
 struct AnimeFile {
     pub file_name:         String,
     pub title:             String,
@@ -327,14 +328,14 @@ fn main() {
     loop {
         let current_dir = match dirs_to_search.shift() {
             Some(p) => { p },
-            None    => { break ;},
+            None    => { break; },
         };
 
         info!("Scanning: {}", current_dir.display());
         let (new_dirs, new_files) = scan_dir(&current_dir);
 
         match new_dirs {
-            None       => {},
+            None       => { },
             Some(dirs) => {
                 dirs_to_search.push_all(dirs.as_slice().clone());
                 dirs_to_search.sort();
@@ -342,11 +343,55 @@ fn main() {
             },
         };
 
-        match new_files {
-            None        => {},
-            Some(files) => { info!("Found some files in: {}", current_dir.display()) },
+        let grouped_files = match new_files {
+            None        => { continue; },
+            Some(files) => {
+                info!("Found some files in: {}", current_dir.display());
+                group_files(files)
+            },
         };
+        let mut episodes_with_dupes = grouped_files.iter().filter(|g| g.len() > 1).enumerate();
+        for (index, episode_files) in episodes_with_dupes {
+            if index == 0 {
+                println!("Found episodes with dupes in {}:", current_dir.display());
+            }
+            println!("  {}:", episode_files[0].episode);
+            for file in episode_files.iter() {
+                println!("    {}", file.file_name);
+            }
+        }
     }
+}
+
+fn group_files(files: Vec<AnimeFile>) -> Vec<Vec<AnimeFile>> {
+    let mut grouped_files: Vec<Vec<AnimeFile>> = Vec::new();
+
+    let mut file_groups = HashMap::new();
+
+    for file in files.iter() {
+        let hash_key = format!("{} {}", file.season, file.episode);
+        if !file_groups.contains_key(&hash_key) {
+            let mut group_vec: Vec<AnimeFile> = Vec::new();
+            file_groups.insert(hash_key.clone(), group_vec);
+        }
+
+        match file_groups.find_mut(&hash_key) {
+            Some(ref mut group) => group.push(file.clone()),
+            None                => { },
+        }
+    }
+
+    let mut groups = Vec::new();
+    for group in file_groups.keys() {
+        groups.push(group.clone());
+    }
+    groups.sort();
+    for group in groups.iter() {
+        let file_vec = file_groups.get(group);
+        grouped_files.push(file_vec.clone());
+    }
+
+    grouped_files
 }
 
 fn scan_dir(dir: &Path) -> (Option<Vec<Path>>, Option<Vec<AnimeFile>>) {
