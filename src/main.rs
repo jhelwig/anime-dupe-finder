@@ -395,6 +395,7 @@ fn group_files(files: Vec<AnimeFile>) -> Vec<Vec<AnimeFile>> {
 }
 
 fn scan_dir(dir: &Path) -> (Option<Vec<Path>>, Option<Vec<AnimeFile>>) {
+    let re = regex!(r"\.(?i:srt|ass|ssa|ac3|idx|sub|dts|flac|mka)$");
     let mut new_dirs:  Vec<Path>      = Vec::new();
     let mut new_files: Vec<AnimeFile> = Vec::new();
 
@@ -403,11 +404,24 @@ fn scan_dir(dir: &Path) -> (Option<Vec<Path>>, Option<Vec<AnimeFile>>) {
         if path.is_dir() {
             new_dirs.push(path);
         } else if path.is_file() {
-            let anime_file = match AnimeFile::new(String::from_str(path.as_str().unwrap())) {
-                None    => continue,
-                Some(a) => a,
+            let path_str = match path.as_str() {
+                Some(s) => { s },
+                None    => {
+                    fail!("Unable to convert path ({}) to str.",
+                          path.display());
+                },
             };
-            new_files.push(anime_file);
+
+            let captures = match re.captures(path_str) {
+                Some(c) => { /* Nothing to do */ },
+                None    => {
+                    let anime_file = match AnimeFile::new(String::from_str(path_str)) {
+                        Some(a) => { a },
+                        None    => { continue; },
+                    };
+                    new_files.push(anime_file);
+                }
+            };
         }
     }
 
