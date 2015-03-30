@@ -3,7 +3,16 @@
 name = "anime-dupe-finder"
 version = "0.0.1"
 authors = ["Jacob Helwig <jacob@technosorcery.net>"]
+repository = "https://git.technosorcery.net/?p=anime-dupe-finder.git"
+homepage = "https://bugs.technosorcery.net/"
+description = "Find duplicate anime files in an organized collection"
+license = "BSD-2-Clause"
+readme = "README.md"
 
-[dependencies.glob]
-
-git = "https://github.com/rust-lang/glob.git"
+[dependencies]
+glob = "*"
+clap = "*"
+regex = "*"
+regex_macros = "*"
+log = "*"
+env_logger = "*"

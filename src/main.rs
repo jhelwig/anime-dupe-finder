@@ -1,23 +1,36 @@
-#![feature(phase)]
+#![feature(collections)]
+#![feature(core)]
+#![feature(path_ext)]
+#![feature(plugin)]
 
-extern crate getopts;
-extern crate glob;
+#![plugin(regex_macros)]
 extern crate regex;
 
-#[phase(plugin)] extern crate regex_macros;
-#[phase(plugin, link)] extern crate log;
+extern crate clap;
+#[cfg(not(test))] use clap::{Arg, App};
 
-use std::os;
-use std::io::fs::PathExtensions;
+extern crate glob;
+
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
+extern crate core;
+use core::str::FromStr;
+
+use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fs::PathExt;
+use std::ops::Deref;
+use std::path::Path;
 
-#[deriving(Show, PartialEq, Eq, Clone)]
+#[derive(Show, PartialEq, Eq, Clone)]
 enum SeasonNum {
     Season(u8),
     NoSeason,
 }
 
-#[deriving(Show, PartialEq, Eq, Clone)]
+#[derive(Show, PartialEq, Eq, Clone)]
 enum EpisodeNum {
     Episode(u16),
     Opening(u16),
@@ -28,7 +41,7 @@ enum EpisodeNum {
     NoEpisode,
 }
 
-#[deriving(Show, PartialEq, Eq, Clone)]
+#[derive(Show, PartialEq, Eq, Clone)]
 enum SourceMedia {
     BluRay,
     DVD,
@@ -43,7 +56,7 @@ enum SourceMedia {
     UnknownMedia,
 }
 
-#[deriving(Show, PartialEq, Eq, Clone)]
+#[derive(Show, PartialEq, Eq, Clone)]
 struct AnimeFile {
     pub file_name:         String,
     pub title:             String,
@@ -59,63 +72,63 @@ impl AnimeFile {
     pub fn new(file: String) -> Option<AnimeFile> {
         // (?:Ep|S\d+x?E)((?:C|S|T)?)(\d+)
         let re = regex!(r"^.*/(?P<title>.*) - (?:Ep|S(?P<season>\d+)x?E)(?P<type>(?:C|S|T|O)?)(?P<episode>\d+)(?:v(?P<version>\d+))?(?: \[(?P<media>.+?)\]\[(?P<width>\d+)x(?P<height>\d+))?");
-        let captures = match re.captures(file.as_slice().clone()) {
+        let captures = match re.captures(&file[..]) {
             Some(c) => { c },
             None    => { return None; },
         };
-        debug!("Full match: |{}|", captures.at(0));
-        debug!("Matched title:   |{}|", captures.name("title"));
-        debug!("Matched season:  |{}|", captures.name("season"));
-        debug!("Matched type:    |{}|", captures.name("type"));
-        debug!("Matched episode: |{}|", captures.name("episode"));
-        debug!("Matched media:   |{}|", captures.name("media"));
-        debug!("Matched width:   |{}|", captures.name("width"));
-        debug!("Matched height:  |{}|", captures.name("height"));
-        debug!("Matched version: |{}|", captures.name("version"));
+        debug!("Full match: |{}|", captures.at(0).unwrap_or(""));
+        debug!("Matched title:   |{}|", captures.name("title").unwrap_or(""));
+        debug!("Matched season:  |{}|", captures.name("season").unwrap_or(""));
+        debug!("Matched type:    |{}|", captures.name("type").unwrap_or(""));
+        debug!("Matched episode: |{}|", captures.name("episode").unwrap_or(""));
+        debug!("Matched media:   |{}|", captures.name("media").unwrap_or(""));
+        debug!("Matched width:   |{}|", captures.name("width").unwrap_or(""));
+        debug!("Matched height:  |{}|", captures.name("height").unwrap_or(""));
+        debug!("Matched version: |{}|", captures.name("version").unwrap_or(""));
 
-        let title = String::from_str(captures.name("title"));
-        let season:  SeasonNum  = if captures.name("season")  == "" { NoSeason  } else { Season(from_str(captures.name("season")).unwrap()) };
-        let episode: EpisodeNum = if captures.name("episode") == "" { NoEpisode } else {
-            let ep_num: u16 = from_str(captures.name("episode")).unwrap();
-            match captures.name("type") {
-                "C" => { Closing(ep_num) },
-                "S" => { Special(ep_num) },
-                "T" => { Trailer(ep_num) },
-                "O" => { Opening(ep_num) }
-                ""  => { Episode(ep_num) },
+        let title = String::from_str(captures.name("title").unwrap_or(""));
+        let season:  SeasonNum  = if captures.name("season").unwrap_or("")  == "" { SeasonNum::NoSeason  } else { SeasonNum::Season(u8::from_str(captures.name("season").unwrap()).unwrap()) };
+        let episode: EpisodeNum = if captures.name("episode").unwrap_or("") == "" { EpisodeNum::NoEpisode } else {
+            let ep_num: u16 = u16::from_str(captures.name("episode").unwrap_or("")).unwrap();
+            match captures.name("type").unwrap_or("") {
+                "C" => { EpisodeNum::Closing(ep_num) },
+                "S" => { EpisodeNum::Special(ep_num) },
+                "T" => { EpisodeNum::Trailer(ep_num) },
+                "O" => { EpisodeNum::Opening(ep_num) }
+                ""  => { EpisodeNum::Episode(ep_num) },
                 _   => {
-                    warn!("Found unmatched episode type: {}", captures.name("type"));
-                    OtherEpisode(ep_num)
+                    warn!("Found unmatched episode type: {}", captures.name("type").unwrap());
+                    EpisodeNum::OtherEpisode(ep_num)
                 },
             }
         };
-        let media: SourceMedia = match captures.name("media") {
-            "www"          => WWW,
-            "Blu-ray"      => BluRay,
-            "DVD"          => DVD,
-            "HDTV"         => HDTV,
-            "DTV"          => DTV,
-            "VHS"          => VHS,
-            "HKDVD"        => HKDVD,
-            "LD"           => LaserDisc,
-            "TV"           => TV,
-            "" | "unknown" => UnknownMedia,
+        let media: SourceMedia = match captures.name("media").unwrap_or("") {
+            "www"          => SourceMedia::WWW,
+            "Blu-ray"      => SourceMedia::BluRay,
+            "DVD"          => SourceMedia::DVD,
+            "HDTV"         => SourceMedia::HDTV,
+            "DTV"          => SourceMedia::DTV,
+            "VHS"          => SourceMedia::VHS,
+            "HKDVD"        => SourceMedia::HKDVD,
+            "LD"           => SourceMedia::LaserDisc,
+            "TV"           => SourceMedia::TV,
+            "" | "unknown" => SourceMedia::UnknownMedia,
             _ => {
-                warn!("Found unmatched media type: {}", captures.name("media"));
-                OtherMedia
+                warn!("Found unmatched media type: {}", captures.name("media").unwrap_or(""));
+                SourceMedia::OtherMedia
             },
         };
-        let width: Option<u64> = match captures.name("width") {
+        let width: Option<u64> = match captures.name("width").unwrap_or("") {
             "" => None,
-            _  => Some(from_str(captures.name("width")).unwrap()),
+            _  => Some(u64::from_str(captures.name("width").unwrap_or("")).unwrap()),
         };
-        let height: Option<u64> = match captures.name("height") {
+        let height: Option<u64> = match captures.name("height").unwrap_or("") {
             "" => None,
-            _  => Some(from_str(captures.name("height")).unwrap()),
+            _  => Some(u64::from_str(captures.name("height").unwrap_or("")).unwrap()),
         };
-        let version: u8 = match from_str(captures.name("version")) {
-            None    => 1,
-            Some(v) => v,
+        let version: u8 = match u8::from_str(captures.name("version").unwrap_or("")) {
+            Err(e) => { e; 1 },
+            Ok(v)  => v,
         };
 
         let af = AnimeFile {
@@ -163,181 +176,179 @@ impl Ord for AnimeFile {
 
 #[test]
 fn animefile_sets_parts_for_episode() {
-    let file:  String = String::from_str("Fairy Tail 2014 - S01E01 [www][1280x720.H264AVC.AAC][HorribleSubs](6a6129cd511d56c6080d50d68dcea5011600d7f4).mkv");
+    let file:  String = String::from_str("./Fairy Tail 2014 - S01E01 [www][1280x720.H264AVC.AAC][HorribleSubs](6a6129cd511d56c6080d50d68dcea5011600d7f4).mkv");
     let title: String = String::from_str("Fairy Tail 2014");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
-        None    => { fail!("Didn't get an AnimeFile!") },
+        None    => { panic!("Didn't get an AnimeFile!") },
     };
-    println!("{}", af);
+    println!("{:?}", af);
 
-    assert_eq!(file,          af.file_name);
-    assert_eq!(title,         af.title);
-    assert_eq!(Season(1),     af.season);
-    assert_eq!(Episode(1),    af.episode);
-    assert_eq!(WWW,           af.source_media);
-    assert_eq!(Some(1280u64), af.resolution_width);
-    assert_eq!(Some(720u64),  af.resolution_height);
-    assert_eq!(1u8,           af.version);
+    assert_eq!(file,                   af.file_name);
+    assert_eq!(title,                  af.title);
+    assert_eq!(SeasonNum::Season(1),   af.season);
+    assert_eq!(EpisodeNum::Episode(1), af.episode);
+    assert_eq!(SourceMedia::WWW,       af.source_media);
+    assert_eq!(Some(1280u64),          af.resolution_width);
+    assert_eq!(Some(720u64),           af.resolution_height);
+    assert_eq!(1u8,                    af.version);
 }
 
 #[test]
 fn animefile_sets_parts_for_trailer() {
-    let file:  String = String::from_str("Working`!! - S01ET9 [Blu-ray][1920x1080.H264AVC.FLAC][tlacatlc6](91938f8ec4d2affd2f5877279af7e6803b7abcf5).mkv");
+    let file:  String = String::from_str("./Working`!! - S01ET9 [Blu-ray][1920x1080.H264AVC.FLAC][tlacatlc6](91938f8ec4d2affd2f5877279af7e6803b7abcf5).mkv");
     let title: String = String::from_str("Working`!!");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
-        None    => { fail!("Didn't get an AnimeFile!") },
+        None    => { panic!("Didn't get an AnimeFile!") },
     };
-    println!("{}", af);
+    println!("{:?}", af);
 
-    assert_eq!(file,          af.file_name);
-    assert_eq!(title,         af.title);
-    assert_eq!(Season(1),     af.season);
-    assert_eq!(Trailer(9),    af.episode);
-    assert_eq!(BluRay,        af.source_media);
-    assert_eq!(Some(1920u64), af.resolution_width);
-    assert_eq!(Some(1080u64), af.resolution_height);
-    assert_eq!(1u8,           af.version);
+    assert_eq!(file,                   af.file_name);
+    assert_eq!(title,                  af.title);
+    assert_eq!(SeasonNum::Season(1),   af.season);
+    assert_eq!(EpisodeNum::Trailer(9), af.episode);
+    assert_eq!(SourceMedia::BluRay,    af.source_media);
+    assert_eq!(Some(1920u64),          af.resolution_width);
+    assert_eq!(Some(1080u64),          af.resolution_height);
+    assert_eq!(1u8,                    af.version);
 }
 
 #[test]
 fn animefile_sets_parts_for_closing() {
-    let file:  String = String::from_str("Zero no Tsukaima Princess no Rondo - S01EC2 [Blu-ray][1280x720.H264AVC.FLAC][Doki](bea85424422dd1465d0758b051991966eeca6574).mkv");
+    let file:  String = String::from_str("./Zero no Tsukaima Princess no Rondo - S01EC2 [Blu-ray][1280x720.H264AVC.FLAC][Doki](bea85424422dd1465d0758b051991966eeca6574).mkv");
     let title: String = String::from_str("Zero no Tsukaima Princess no Rondo");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
-        None    => { fail!("Didn't get an AnimeFile!") },
+        None    => { panic!("Didn't get an AnimeFile!") },
     };
-    println!("{}", af);
+    println!("{:?}", af);
 
-    assert_eq!(file,          af.file_name);
-    assert_eq!(title,         af.title);
-    assert_eq!(Season(1),     af.season);
-    assert_eq!(Closing(2),    af.episode);
-    assert_eq!(BluRay,        af.source_media);
-    assert_eq!(Some(1280u64), af.resolution_width);
-    assert_eq!(Some(720u64),  af.resolution_height);
-    assert_eq!(1u8,           af.version);
+    assert_eq!(file,                   af.file_name);
+    assert_eq!(title,                  af.title);
+    assert_eq!(SeasonNum::Season(1),   af.season);
+    assert_eq!(EpisodeNum::Closing(2), af.episode);
+    assert_eq!(SourceMedia::BluRay,    af.source_media);
+    assert_eq!(Some(1280u64),          af.resolution_width);
+    assert_eq!(Some(720u64),           af.resolution_height);
+    assert_eq!(1u8,                    af.version);
 }
 
 #[test]
 fn animefile_sets_parts_for_opening() {
-    let file:  String = String::from_str("The Garden of Sinners - S01EO7 [Blu-ray][1920x1080.H264AVC.FLAC][Coalgirls](8e28f917be6423ce5ee4deee1369eb4e2eb02e48).mkv");
+    let file:  String = String::from_str("./The Garden of Sinners - S01EO7 [Blu-ray][1920x1080.H264AVC.FLAC][Coalgirls](8e28f917be6423ce5ee4deee1369eb4e2eb02e48).mkv");
     let title: String = String::from_str("The Garden of Sinners");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
-        None    => { fail!("Didn't get an AnimeFile!") },
+        None    => { panic!("Didn't get an AnimeFile!") },
     };
-    println!("{}", af);
+    println!("{:?}", af);
 
-    assert_eq!(file,          af.file_name);
-    assert_eq!(title,         af.title);
-    assert_eq!(Season(1),     af.season);
-    assert_eq!(Opening(7),    af.episode);
-    assert_eq!(BluRay,        af.source_media);
-    assert_eq!(Some(1920u64), af.resolution_width);
-    assert_eq!(Some(1080u64), af.resolution_height);
-    assert_eq!(1u8,           af.version);
+    assert_eq!(file,                   af.file_name);
+    assert_eq!(title,                  af.title);
+    assert_eq!(SeasonNum::Season(1),   af.season);
+    assert_eq!(EpisodeNum::Opening(7), af.episode);
+    assert_eq!(SourceMedia::BluRay,    af.source_media);
+    assert_eq!(Some(1920u64),          af.resolution_width);
+    assert_eq!(Some(1080u64),          af.resolution_height);
+    assert_eq!(1u8,                    af.version);
 }
 
 #[test]
 fn animefile_sets_parts_for_special() {
-    let file:  String = String::from_str("Texhnolyze - S01ES5 [DVD][704x396.XviD.Vorbis Ogg Vorbis_][V-A](d6175eabce82902d23446af3574fdd87286368c6).mkv");
+    let file:  String = String::from_str("./Texhnolyze - S01ES5 [DVD][704x396.XviD.Vorbis Ogg Vorbis_][V-A](d6175eabce82902d23446af3574fdd87286368c6).mkv");
     let title: String = String::from_str("Texhnolyze");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
-        None    => { fail!("Didn't get an AnimeFile!") },
+        None    => { panic!("Didn't get an AnimeFile!") },
     };
-    println!("{}", af);
+    println!("{:?}", af);
 
-    assert_eq!(file,         af.file_name);
-    assert_eq!(title,        af.title);
-    assert_eq!(Season(1),    af.season);
-    assert_eq!(Special(5),   af.episode);
-    assert_eq!(DVD,          af.source_media);
-    assert_eq!(Some(704u64), af.resolution_width);
-    assert_eq!(Some(396u64), af.resolution_height);
-    assert_eq!(1u8,          af.version);
+    assert_eq!(file,                   af.file_name);
+    assert_eq!(title,                  af.title);
+    assert_eq!(SeasonNum::Season(1),   af.season);
+    assert_eq!(EpisodeNum::Special(5), af.episode);
+    assert_eq!(SourceMedia::DVD,       af.source_media);
+    assert_eq!(Some(704u64),           af.resolution_width);
+    assert_eq!(Some(396u64),           af.resolution_height);
+    assert_eq!(1u8,                    af.version);
 }
 
 #[test]
 fn animefile_sets_parts_for_version() {
-    let file: String = String::from_str("Fairy Tail - S01E034v2 [HDTV][1280x720.H264AVC.AAC][Kyuubi](304a75ced2d46016e3df0c8b4607f4afe4e75952).mp4");
+    let file: String = String::from_str("./Fairy Tail - S01E034v2 [HDTV][1280x720.H264AVC.AAC][Kyuubi](304a75ced2d46016e3df0c8b4607f4afe4e75952).mp4");
     let title: String = String::from_str("Fairy Tail");
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
-        None    => { fail!("Didn't get an AnimeFile!") },
+        None    => { panic!("Didn't get an AnimeFile!") },
     };
-    println!("{}", af);
+    println!("{:?}", af);
 
-    assert_eq!(file,          af.file_name);
-    assert_eq!(title,         af.title);
-    assert_eq!(Season(1),     af.season);
-    assert_eq!(Episode(34),   af.episode);
-    assert_eq!(HDTV,          af.source_media);
-    assert_eq!(Some(1280u64), af.resolution_width);
-    assert_eq!(Some(720u64),  af.resolution_height);
-    assert_eq!(2u8,           af.version);
+    assert_eq!(file,                    af.file_name);
+    assert_eq!(title,                   af.title);
+    assert_eq!(SeasonNum::Season(1),    af.season);
+    assert_eq!(EpisodeNum::Episode(34), af.episode);
+    assert_eq!(SourceMedia::HDTV,       af.source_media);
+    assert_eq!(Some(1280u64),           af.resolution_width);
+    assert_eq!(Some(720u64),            af.resolution_height);
+    assert_eq!(2u8,                     af.version);
 }
 
+#[cfg(not(test))]
 fn main() {
-    let args: Vec<String> = os::args();
-    let program_name: &str = args[0].as_slice();
+    env_logger::init().unwrap();
 
-    let opts: [getopts::OptGroup, ..1] = [
-        getopts::optflag("h", "help", "Display this help"),
-    ];
+    let version = format!("{}.{}.{}{}",
+                          env!("CARGO_PKG_VERSION_MAJOR"),
+                          env!("CARGO_PKG_VERSION_MINOR"),
+                          env!("CARGO_PKG_VERSION_PATCH"),
+                          option_env!("CARGO_PKG_VERSION_PRE").unwrap_or(""));
 
-    let matches = match getopts::getopts(args.tail(), opts) {
-        Ok(m)  => { m }
-        Err(f) => {
-            println!("ERROR: {}", f.to_string());
-            print_usage(program_name, opts);
-            os::set_exit_status(1);
-            return;
-        }
-    };
-    if matches.opt_present("h") {
-        print_usage(program_name, opts);
-        return;
-    }
+    let matches = App::new("anime-dupe-finder")
+        .version(&version[..])
+        .author("Jacob Helwig <jacob@technosorcery.net>")
+        .about("Find duplicates in an organized anime collection")
+        .arg(Arg::new("directory")
+             .help("Directory to recursively search for duplicates.")
+             .multiple(true)
+             .index(1)
+             .required(true))
+        .get_matches();
 
-    let dirs = if !matches.free.is_empty() {
-        matches.free.clone()
-    } else {
-        println!("ERROR: Must provide at least one directory.");
-        print_usage(program_name, opts);
-        os::set_exit_status(1);
-        return
-    };
+    let dirs = matches.values_of("directory").unwrap();
 
-    info!("Dirs to check: {}", dirs);
+    info!("Dirs to check: {:?}", dirs);
 
-    let mut dirs_to_search: Vec<Path> = Vec::new();
-    for dir in dirs.iter() {
+    let mut dirs_to_search = Vec::new();
+    for dir in dirs {
         let path = Path::new(dir.as_slice().clone());
         if path.is_dir() {
-            dirs_to_search.push(path)
+            match path.to_str() {
+                Some(p) => dirs_to_search.push(String::from_str(p)),
+                None    => panic!("Unable to convert Path to str: {:?}", path),
+            }
         } else {
-            fail!("ERROR: {}", format!("Not a directory: {}", path.display()).as_slice().clone());
+            panic!("ERROR: {}", format!("Not a directory: {}", path.display()).as_slice().clone());
         }
     }
     dirs_to_search.sort();
     dirs_to_search.dedup();
     loop {
-        let current_dir = match dirs_to_search.shift() {
-            Some(p) => { p },
-            None    => { break; },
-        };
+        let current_dir;
 
-        info!("Scanning: {}", current_dir.display());
+        if dirs_to_search.len() > 0 {
+            current_dir = dirs_to_search.remove(0);
+        } else {
+            break;
+        }
+
+        info!("Scanning: {}", current_dir);
         let (new_dirs, new_files) = scan_dir(&current_dir);
 
         match new_dirs {
             None       => { },
             Some(dirs) => {
-                dirs_to_search.push_all(dirs.as_slice().clone());
+                dirs_to_search.push_all(&dirs[..]);
                 dirs_to_search.sort();
                 dirs_to_search.dedup();
             },
@@ -346,16 +357,16 @@ fn main() {
         let grouped_files = match new_files {
             None        => { continue; },
             Some(files) => {
-                info!("Found some files in: {}", current_dir.display());
+                info!("Found some files in: {}", current_dir);
                 group_files(files)
             },
         };
         let mut episodes_with_dupes = grouped_files.iter().filter(|g| g.len() > 1).enumerate();
         for (index, episode_files) in episodes_with_dupes {
             if index == 0 {
-                println!("Found episodes with dupes in {}:", current_dir.display());
+                println!("Found episodes with dupes in {}:", current_dir);
             }
-            println!("  {}:", episode_files[0].episode);
+            println!("  {:?}:", episode_files[0].episode);
             for file in episode_files.iter() {
                 println!("    {}", file.file_name);
             }
@@ -369,13 +380,13 @@ fn group_files(files: Vec<AnimeFile>) -> Vec<Vec<AnimeFile>> {
     let mut file_groups = HashMap::new();
 
     for file in files.iter() {
-        let hash_key = format!("{} {}", file.season, file.episode);
+        let hash_key = format!("{:?} {:?}", file.season, file.episode);
         if !file_groups.contains_key(&hash_key) {
             let mut group_vec: Vec<AnimeFile> = Vec::new();
             file_groups.insert(hash_key.clone(), group_vec);
         }
 
-        match file_groups.find_mut(&hash_key) {
+        match file_groups.get_mut(&hash_key) {
             Some(ref mut group) => group.push(file.clone()),
             None                => { },
         }
@@ -387,35 +398,48 @@ fn group_files(files: Vec<AnimeFile>) -> Vec<Vec<AnimeFile>> {
     }
     groups.sort();
     for group in groups.iter() {
-        let file_vec = file_groups.get(group);
+        let file_vec = match file_groups.get(group) {
+            Some(g) => g,
+            None    => panic!("Error retrieving file group: {}", group)
+        };
         grouped_files.push(file_vec.clone());
     }
 
     grouped_files
 }
 
-fn scan_dir(dir: &Path) -> (Option<Vec<Path>>, Option<Vec<AnimeFile>>) {
+fn scan_dir(dir: &String) -> (Option<Vec<String>>, Option<Vec<AnimeFile>>) {
     let re = regex!(r"\.(?i:srt|ass|ssa|ac3|idx|sub|dts|flac|mka)$");
-    let mut new_dirs:  Vec<Path>      = Vec::new();
-    let mut new_files: Vec<AnimeFile> = Vec::new();
+    let mut new_dirs  = Vec::new();
+    let mut new_files = Vec::new();
 
-    for path in glob::glob(dir.clone().join("*").as_str().unwrap()) {
+    let glob_str = match Path::new(&dir[..]).join("*").into_os_string().into_string() {
+        Ok(s)  => s,
+        Err(e) => panic!("Unable to get a string of {:?}", e),
+    };
+    for entry in glob::glob(&glob_str[..]).unwrap() {
+        let path = match entry {
+            Ok(p)  => p,
+            Err(e) => panic!("Unable to process glob match: {}", e),
+        };
+
         debug!("Found: {}", path.display());
         if path.is_dir() {
             new_dirs.push(path);
         } else if path.is_file() {
-            let path_str = match path.as_str() {
-                Some(s) => { s },
-                None    => {
-                    fail!("Unable to convert path ({}) to str.",
-                          path.display());
+            let path_string = match path.clone().into_os_string().into_string() {
+                Ok(s)  => { s },
+                Err(e) => {
+                    panic!("Unable to convert path ({}) to str: {:?}",
+                           path.display(),
+                           e);
                 },
             };
 
-            let captures = match re.captures(path_str) {
+            let captures = match re.captures(&path_string[..]) {
                 Some(c) => { /* Nothing to do */ },
                 None    => {
-                    let anime_file = match AnimeFile::new(String::from_str(path_str)) {
+                    let anime_file = match AnimeFile::new(path_string.clone()) {
                         Some(a) => { a },
                         None    => { continue; },
                     };
@@ -428,14 +452,14 @@ fn scan_dir(dir: &Path) -> (Option<Vec<Path>>, Option<Vec<AnimeFile>>) {
     new_dirs.sort();
     new_files.sort();
 
-    (if new_dirs.len()  == 0 { None } else { Some(new_dirs)  },
-     if new_files.len() == 0 { None } else { Some(new_files) })
-}
+    let mut new_string_dirs = Vec::new();
+    for dir in new_dirs {
+        match dir.into_os_string().into_string() {
+            Ok(s)  => new_string_dirs.push(s),
+            Err(e) => panic!("Problem converting PathBuf into String: {:?}", e),
+        }
+    }
 
-fn print_usage(name: &str, opts: &[getopts::OptGroup]) {
-    println!("{}", getopts::usage(short_usage_str(name).as_slice(), opts));
-}
-
-fn short_usage_str(name: &str) -> String {
-    format!("Usage: {} [options] <dir> [<dir> ...]", name)
+    (if new_string_dirs.len() == 0 { None } else { Some(new_string_dirs) },
+     if new_files.len()       == 0 { None } else { Some(new_files)       })
 }
