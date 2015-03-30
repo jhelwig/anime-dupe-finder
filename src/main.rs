@@ -22,6 +22,9 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs::PathExt;
 use std::path::Path;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
+use std::thread;
 
 #[derive(Show, PartialEq, Eq, Clone)]
 enum SeasonNum {
@@ -335,34 +338,15 @@ fn main() {
     }
     dirs_to_search.sort();
     dirs_to_search.dedup();
-    loop {
-        let current_dir;
 
-        if dirs_to_search.len() > 0 {
-            current_dir = dirs_to_search.remove(0);
-        } else {
-            break;
-        }
+    let (tx, rx) = mpsc::channel();
 
-        info!("Scanning: {}", current_dir);
-        let (new_dirs, new_files) = scan_dir(&current_dir);
+    thread::spawn(move || { scan_dirs(dirs_to_search, tx) });
 
-        match new_dirs {
-            None       => { },
-            Some(dirs) => {
-                dirs_to_search.push_all(&dirs[..]);
-                dirs_to_search.sort();
-                dirs_to_search.dedup();
-            },
-        };
+    for scan_result in rx.iter() {
+        let (current_dir, new_files) = scan_result;
+        let grouped_files = group_files(new_files);
 
-        let grouped_files = match new_files {
-            None        => { continue; },
-            Some(files) => {
-                info!("Found some files in: {}", current_dir);
-                group_files(files)
-            },
-        };
         let episodes_with_dupes = grouped_files.iter().filter(|g| g.len() > 1).enumerate();
         for (index, episode_files) in episodes_with_dupes {
             if index == 0 {
@@ -408,6 +392,39 @@ fn group_files(files: Vec<AnimeFile>) -> Vec<Vec<AnimeFile>> {
     }
 
     grouped_files
+}
+
+fn scan_dirs(dirs_to_search: Vec<String>, tx: Sender<(String, Vec<AnimeFile>)>) {
+    let mut search_dir_queue = dirs_to_search.clone();
+
+    loop {
+        let current_dir;
+        if search_dir_queue.len() > 0 {
+            current_dir = search_dir_queue.remove(0);
+        } else {
+            return;
+        }
+
+        info!("Scanning: {}", current_dir);
+        let (new_dirs, new_files) = scan_dir(&current_dir);
+
+        match new_dirs {
+            None       => { },
+            Some(dirs) => {
+                search_dir_queue.push_all(&dirs[..]);
+                search_dir_queue.sort();
+                search_dir_queue.dedup();
+            },
+        };
+
+        match new_files {
+            None => { },
+            Some(files) => {
+                info!("Found some files in: {}", current_dir);
+                tx.send((current_dir, files)).unwrap();
+            },
+        }
+    }
 }
 
 fn scan_dir(dir: &String) -> (Option<Vec<String>>, Option<Vec<AnimeFile>>) {
