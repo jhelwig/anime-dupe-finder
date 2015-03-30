@@ -22,17 +22,17 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs::PathExt;
 use std::path::Path;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::Sender;
 use std::sync::mpsc;
 use std::thread;
 
-#[derive(Show, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum SeasonNum {
     Season(u8),
     NoSeason,
 }
 
-#[derive(Show, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum EpisodeNum {
     Episode(u16),
     Opening(u16),
@@ -43,7 +43,7 @@ enum EpisodeNum {
     NoEpisode,
 }
 
-#[derive(Show, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum SourceMedia {
     BluRay,
     DVD,
@@ -58,7 +58,7 @@ enum SourceMedia {
     UnknownMedia,
 }
 
-#[derive(Show, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct AnimeFile {
     pub file_name:         String,
     pub title:             String,
@@ -456,7 +456,7 @@ fn scan_dir(dir: &String) -> (Option<Vec<String>>, Option<Vec<AnimeFile>>) {
             };
 
             match re.captures(&path_string[..]) {
-                Some(c) => { /* Nothing to do: Support file */ },
+                Some(_) => { /* Nothing to do: Support file */ },
                 None    => {
                     let anime_file = match AnimeFile::new(path_string.clone()) {
                         Some(a) => { a },
