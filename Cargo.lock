@@ -2,7 +2,7 @@
 name = "anime-dupe-finder"
 version = "0.0.1"
 dependencies = [
- "clap 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clap 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -12,7 +12,7 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
