@@ -21,7 +21,6 @@ use core::str::FromStr;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs::PathExt;
-use std::ops::Deref;
 use std::path::Path;
 
 #[derive(Show, PartialEq, Eq, Clone)]
@@ -126,8 +125,11 @@ impl AnimeFile {
             "" => None,
             _  => Some(u64::from_str(captures.name("height").unwrap_or("")).unwrap()),
         };
-        let version: u8 = match u8::from_str(captures.name("version").unwrap_or("")) {
-            Err(e) => { e; 1 },
+        let version: u8 = match u8::from_str(captures.name("version").unwrap_or("1")) {
+            Err(e) => {
+                warn!("Error parsing version number: {}", e);
+                1
+            },
             Ok(v)  => v,
         };
 
@@ -321,14 +323,14 @@ fn main() {
 
     let mut dirs_to_search = Vec::new();
     for dir in dirs {
-        let path = Path::new(dir.as_slice().clone());
+        let path = Path::new(&dir[..]);
         if path.is_dir() {
             match path.to_str() {
                 Some(p) => dirs_to_search.push(String::from_str(p)),
                 None    => panic!("Unable to convert Path to str: {:?}", path),
             }
         } else {
-            panic!("ERROR: {}", format!("Not a directory: {}", path.display()).as_slice().clone());
+            panic!("ERROR: Not a directory: {}", path.display());
         }
     }
     dirs_to_search.sort();
@@ -361,7 +363,7 @@ fn main() {
                 group_files(files)
             },
         };
-        let mut episodes_with_dupes = grouped_files.iter().filter(|g| g.len() > 1).enumerate();
+        let episodes_with_dupes = grouped_files.iter().filter(|g| g.len() > 1).enumerate();
         for (index, episode_files) in episodes_with_dupes {
             if index == 0 {
                 println!("Found episodes with dupes in {}:", current_dir);
@@ -382,7 +384,7 @@ fn group_files(files: Vec<AnimeFile>) -> Vec<Vec<AnimeFile>> {
     for file in files.iter() {
         let hash_key = format!("{:?} {:?}", file.season, file.episode);
         if !file_groups.contains_key(&hash_key) {
-            let mut group_vec: Vec<AnimeFile> = Vec::new();
+            let group_vec: Vec<AnimeFile> = Vec::new();
             file_groups.insert(hash_key.clone(), group_vec);
         }
 
@@ -436,8 +438,8 @@ fn scan_dir(dir: &String) -> (Option<Vec<String>>, Option<Vec<AnimeFile>>) {
                 },
             };
 
-            let captures = match re.captures(&path_string[..]) {
-                Some(c) => { /* Nothing to do */ },
+            match re.captures(&path_string[..]) {
+                Some(c) => { /* Nothing to do: Support file */ },
                 None    => {
                     let anime_file = match AnimeFile::new(path_string.clone()) {
                         Some(a) => { a },
