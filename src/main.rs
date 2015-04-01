@@ -16,11 +16,15 @@ extern crate log;
 extern crate env_logger;
 
 extern crate core;
+use core::error::Error;
 use core::str::FromStr;
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs::PathExt;
+use std::fs;
+use std::io::Write;
+use std::io;
 use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc;
@@ -318,9 +322,14 @@ fn main() {
              .multiple(true)
              .index(1)
              .required(true))
+        .arg(Arg::new("interactive")
+             .short("i")
+             .long("interactive")
+             .help("Ask which file(s) to keep from each set of duplicates, and delete the rest."))
         .get_matches();
 
     let dirs = matches.values_of("directory").unwrap();
+    let interactive_mode = matches.is_present("interactive");
 
     info!("Dirs to check: {:?}", dirs);
 
@@ -353,10 +362,111 @@ fn main() {
                 println!("Found episodes with dupes in {}:", current_dir);
             }
             println!("  {:?}:", episode_files[0].episode);
+            let mut i = 0;
             for file in episode_files.iter() {
-                println!("    {}", file.file_name);
+                println!("    {}) {}", i, file.file_name);
+                i += 1;
+            }
+            if interactive_mode {
+                prompt_and_remove_files(episode_files);
             }
         }
+    }
+}
+
+fn prompt_and_remove_files(files_to_consider: &Vec<AnimeFile>) {
+    let mut commands;
+
+    loop {
+        let mut user_input = String::new();
+
+        print!("Select file(s) to keep ('c' to skip group): ");
+        io::stdout().flush().ok().expect("Could not flush stdout");
+
+        let parsed_input = match io::stdin().read_line(&mut user_input) {
+            Ok(_)  => parse_user_input(&user_input),
+            Err(e) => panic!("Error reading user input: {}", e),
+        };
+
+        match parsed_input {
+            Ok(i)  => {
+                commands = i;
+                break;
+            },
+            Err(e) => {
+                println!("Invalid selection: {}", e);
+                continue;
+            },
+        }
+
+    }
+
+    debug!("Commands: {:?}", commands);
+    let mut files_to_remove = files_to_consider.clone();
+    commands.sort();
+    commands.iter_mut().reverse_in_place();
+    for command in commands {
+        debug!("Executing command: {}", command);
+        if command == "c" { return; }
+        files_to_remove.remove(usize::from_str(&command[..]).unwrap());
+    }
+    for file in files_to_remove {
+        match fs::remove_file(&file.file_name) {
+            Ok(_)  => println!("Removed: {}", file.file_name),
+            Err(e) => panic!("Failed to remove {}: {}", file.file_name, e),
+        }
+    }
+}
+
+fn parse_user_input(input: &String) -> Result<Vec<String>, String> {
+    let re = regex!(r"(?i)\b([0-9]+(?:\s*-\s*[0-9]+)?|c)(?:\b|,)");
+
+    let mut result = Vec::new();
+
+    for cap in re.captures_iter(input) {
+        let input_command = cap.at(1).unwrap_or("");
+        debug!("Matched: {:?}", input_command);
+        match expand_ranges(input_command) {
+            Ok(r)  => result.push_all(&r),
+            Err(e) => return Err(e),
+        }
+    }
+
+    if result.len() == 0 {
+        Err(String::from_str("No selection(s) made."))
+    } else {
+        Ok(result)
+    }
+}
+
+fn expand_ranges(input: &str) -> Result<Vec<String>, String> {
+    let mut result = Vec::new();
+
+    if input == "c" || input == "C" {
+        result.push(String::from_str("c"));
+        return Ok(result);
+    }
+
+    let range_re = regex!(r"([0-9]+)\s*-\s*([0-9]+)");
+    if range_re.is_match(input) {
+        let caps = range_re.captures(input).unwrap();
+        let mut low = match u64::from_str(caps.at(1).unwrap()) {
+            Ok(u)  => u,
+            Err(e) => return Err(String::from_str(e.description())),
+        };
+        let mut high = match u64::from_str(caps.at(2).unwrap()) {
+            Ok(u)  => u,
+            Err(e) => return Err(String::from_str(e.description())),
+        };
+        if low > high {
+            let prev_low = low.clone();
+            low = high;
+            high = prev_low;
+        }
+
+        Ok((low..high + 1).map(|x| format!("{}", x) ).collect())
+    } else {
+        Ok(vec!(String::from_str(input)))
     }
 }
 
