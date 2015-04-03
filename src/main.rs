@@ -15,20 +15,22 @@ extern crate glob;
 extern crate log;
 extern crate env_logger;
 
-extern crate core;
-use core::error::Error;
-use core::str::FromStr;
-
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::fs::PathExt;
 use std::fs;
-use std::io::Write;
 use std::io;
 use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc;
 use std::thread;
+
+// Traits
+use std::error::Error;
+use std::fs::PathExt;
+use std::io::Write;
+
+extern crate core;
+use core::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum SeasonNum {
