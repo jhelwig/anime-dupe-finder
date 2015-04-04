@@ -19,6 +19,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
+use std::mem;
 use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc;
@@ -461,9 +462,7 @@ fn expand_ranges(input: &str) -> Result<Vec<String>, String> {
             Err(e) => return Err(String::from_str(e.description())),
         };
         if low > high {
-            let prev_low = low.clone();
-            low = high;
-            high = prev_low;
+            mem::swap(&mut low, &mut high);
         }
 
         Ok((low..high + 1).map(|x| format!("{}", x) ).collect())
