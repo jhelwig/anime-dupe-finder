@@ -31,6 +31,7 @@ use std::fs::PathExt;
 use std::io::Write;
 
 extern crate core;
+use core::num::ToPrimitive;
 use core::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -387,7 +388,7 @@ fn prompt_and_remove_files(files_to_consider: &Vec<AnimeFile>) {
         io::stdout().flush().ok().expect("Could not flush stdout");
 
         let parsed_input = match io::stdin().read_line(&mut user_input) {
-            Ok(_)  => parse_user_input(&user_input),
+            Ok(_)  => parse_user_input(&user_input, files_to_consider.len()),
             Err(e) => panic!("Error reading user input: {}", e),
         };
 
@@ -421,7 +422,7 @@ fn prompt_and_remove_files(files_to_consider: &Vec<AnimeFile>) {
     }
 }
 
-fn parse_user_input(input: &String) -> Result<Vec<String>, String> {
+fn parse_user_input(input: &String, files_to_consider_len: usize) -> Result<Vec<String>, String> {
     let re = regex!(r"(?i)\b([0-9]+(?:\s*-\s*[0-9]+)?|c)(?:\b|,)");
 
     let mut result = Vec::new();
@@ -429,7 +430,7 @@ fn parse_user_input(input: &String) -> Result<Vec<String>, String> {
     for cap in re.captures_iter(input) {
         let input_command = cap.at(1).unwrap_or("");
         debug!("Matched: {:?}", input_command);
-        match expand_ranges(input_command) {
+        match expand_ranges(input_command, files_to_consider_len) {
             Ok(r)  => result.push_all(&r),
             Err(e) => return Err(e),
         }
@@ -442,8 +443,12 @@ fn parse_user_input(input: &String) -> Result<Vec<String>, String> {
     }
 }
 
-fn expand_ranges(input: &str) -> Result<Vec<String>, String> {
+fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String>, String> {
     let mut result = Vec::new();
+    let max_index = match files_to_consider_len.to_u64() {
+        Some(i) => i - 1,
+        None    => return Err(format!("Unable to convert {:?} to a u64", files_to_consider_len)),
+    };
 
     if input == "c" || input == "C" {
         result.push(String::from_str("c"));
@@ -465,8 +470,21 @@ fn expand_ranges(input: &str) -> Result<Vec<String>, String> {
             mem::swap(&mut low, &mut high);
         }
 
-        Ok((low..high + 1).map(|x| format!("{}", x) ).collect())
+        if high >= max_index {
+            Err(format!("{} is greater than the max index ({})", high, max_index))
+        } else {
+            Ok((low..high + 1).map(|x| format!("{}", x) ).collect())
+        }
     } else {
+        match u64::from_str(input) {
+            Ok(u) => {
+                if u >= max_index {
+                    return Err(format!("{} is greater than the max index ({})", u, max_index));
+                }
+            },
+            Err(_) => { },
+        }
+
         Ok(vec!(String::from_str(input)))
     }
 }
