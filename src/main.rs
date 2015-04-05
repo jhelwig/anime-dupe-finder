@@ -470,7 +470,7 @@ fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String
             mem::swap(&mut low, &mut high);
         }
 
-        if high >= max_index {
+        if high > max_index {
             Err(format!("{} is greater than the max index ({})", high, max_index))
         } else {
             Ok((low..high + 1).map(|x| format!("{}", x) ).collect())
@@ -478,7 +478,7 @@ fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String
     } else {
         match u64::from_str(input) {
             Ok(u) => {
-                if u >= max_index {
+                if u > max_index {
                     return Err(format!("{} is greater than the max index ({})", u, max_index));
                 }
             },
