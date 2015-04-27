@@ -31,7 +31,6 @@ use std::fs::PathExt;
 use std::io::Write;
 
 extern crate core;
-use core::num::ToPrimitive;
 use core::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -445,10 +444,7 @@ fn parse_user_input(input: &String, files_to_consider_len: usize) -> Result<Vec<
 
 fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String>, String> {
     let mut result = Vec::new();
-    let max_index = match files_to_consider_len.to_u64() {
-        Some(i) => i - 1,
-        None    => return Err(format!("Unable to convert {:?} to a u64", files_to_consider_len)),
-    };
+    let max_index = files_to_consider_len as u64;
 
     if input == "c" || input == "C" {
         result.push(String::from_str("c"));
