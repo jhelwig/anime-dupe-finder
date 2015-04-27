@@ -3,9 +3,8 @@
 set -ex
 
 multirust update ${rust_version}
-multirust override ${rust_version}
 
-cargo test
+multirust run ${rust_version} cargo test
 
-cargo build
-cargo build --release
+multirust run ${rust_version} cargo build
+multirust run ${rust_version} cargo build --release
