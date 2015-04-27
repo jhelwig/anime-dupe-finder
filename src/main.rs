@@ -30,6 +30,9 @@ use std::error::Error;
 use std::fs::PathExt;
 use std::io::Write;
 
+extern crate collections;
+use collections::borrow::ToOwned;
+
 extern crate core;
 use core::str::FromStr;
 
@@ -95,7 +98,7 @@ impl AnimeFile {
         debug!("Matched height:  |{}|", captures.name("height").unwrap_or(""));
         debug!("Matched version: |{}|", captures.name("version").unwrap_or(""));
 
-        let title = String::from_str(captures.name("title").unwrap_or(""));
+        let title = captures.name("title").unwrap_or("").to_owned();
         let season:  SeasonNum  = if captures.name("season").unwrap_or("")  == "" { SeasonNum::NoSeason  } else { SeasonNum::Season(u8::from_str(captures.name("season").unwrap()).unwrap()) };
         let episode: EpisodeNum = if captures.name("episode").unwrap_or("") == "" { EpisodeNum::NoEpisode } else {
             let ep_num: u16 = u16::from_str(captures.name("episode").unwrap_or("")).unwrap();
@@ -188,8 +191,8 @@ impl Ord for AnimeFile {
 
 #[test]
 fn animefile_sets_parts_for_episode() {
-    let file:  String = String::from_str("./Fairy Tail 2014 - S01E01 [www][1280x720.H264AVC.AAC][HorribleSubs](6a6129cd511d56c6080d50d68dcea5011600d7f4).mkv");
-    let title: String = String::from_str("Fairy Tail 2014");
+    let file  = "./Fairy Tail 2014 - S01E01 [www][1280x720.H264AVC.AAC][HorribleSubs](6a6129cd511d56c6080d50d68dcea5011600d7f4).mkv".to_owned();
+    let title = "Fairy Tail 2014".to_owned();
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
         None    => { panic!("Didn't get an AnimeFile!") },
@@ -208,8 +211,8 @@ fn animefile_sets_parts_for_episode() {
 
 #[test]
 fn animefile_sets_parts_for_trailer() {
-    let file:  String = String::from_str("./Working`!! - S01ET9 [Blu-ray][1920x1080.H264AVC.FLAC][tlacatlc6](91938f8ec4d2affd2f5877279af7e6803b7abcf5).mkv");
-    let title: String = String::from_str("Working`!!");
+    let file  = "./Working`!! - S01ET9 [Blu-ray][1920x1080.H264AVC.FLAC][tlacatlc6](91938f8ec4d2affd2f5877279af7e6803b7abcf5).mkv".to_owned();
+    let title = "Working`!!".to_owned();
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
         None    => { panic!("Didn't get an AnimeFile!") },
@@ -228,8 +231,8 @@ fn animefile_sets_parts_for_trailer() {
 
 #[test]
 fn animefile_sets_parts_for_closing() {
-    let file:  String = String::from_str("./Zero no Tsukaima Princess no Rondo - S01EC2 [Blu-ray][1280x720.H264AVC.FLAC][Doki](bea85424422dd1465d0758b051991966eeca6574).mkv");
-    let title: String = String::from_str("Zero no Tsukaima Princess no Rondo");
+    let file  = "./Zero no Tsukaima Princess no Rondo - S01EC2 [Blu-ray][1280x720.H264AVC.FLAC][Doki](bea85424422dd1465d0758b051991966eeca6574).mkv".to_owned();
+    let title = "Zero no Tsukaima Princess no Rondo".to_owned();
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
         None    => { panic!("Didn't get an AnimeFile!") },
@@ -248,8 +251,8 @@ fn animefile_sets_parts_for_closing() {
 
 #[test]
 fn animefile_sets_parts_for_opening() {
-    let file:  String = String::from_str("./The Garden of Sinners - S01EO7 [Blu-ray][1920x1080.H264AVC.FLAC][Coalgirls](8e28f917be6423ce5ee4deee1369eb4e2eb02e48).mkv");
-    let title: String = String::from_str("The Garden of Sinners");
+    let file  = "./The Garden of Sinners - S01EO7 [Blu-ray][1920x1080.H264AVC.FLAC][Coalgirls](8e28f917be6423ce5ee4deee1369eb4e2eb02e48).mkv".to_owned();
+    let title = "The Garden of Sinners".to_owned();
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
         None    => { panic!("Didn't get an AnimeFile!") },
@@ -268,8 +271,8 @@ fn animefile_sets_parts_for_opening() {
 
 #[test]
 fn animefile_sets_parts_for_special() {
-    let file:  String = String::from_str("./Texhnolyze - S01ES5 [DVD][704x396.XviD.Vorbis Ogg Vorbis_][V-A](d6175eabce82902d23446af3574fdd87286368c6).mkv");
-    let title: String = String::from_str("Texhnolyze");
+    let file  = "./Texhnolyze - S01ES5 [DVD][704x396.XviD.Vorbis Ogg Vorbis_][V-A](d6175eabce82902d23446af3574fdd87286368c6).mkv".to_owned();
+    let title = "Texhnolyze".to_owned();
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
         None    => { panic!("Didn't get an AnimeFile!") },
@@ -288,8 +291,8 @@ fn animefile_sets_parts_for_special() {
 
 #[test]
 fn animefile_sets_parts_for_version() {
-    let file: String = String::from_str("./Fairy Tail - S01E034v2 [HDTV][1280x720.H264AVC.AAC][Kyuubi](304a75ced2d46016e3df0c8b4607f4afe4e75952).mp4");
-    let title: String = String::from_str("Fairy Tail");
+    let file  = "./Fairy Tail - S01E034v2 [HDTV][1280x720.H264AVC.AAC][Kyuubi](304a75ced2d46016e3df0c8b4607f4afe4e75952).mp4".to_owned();
+    let title = "Fairy Tail".to_owned();
     let af = match AnimeFile::new(file.clone()) {
         Some(a) => { a },
         None    => { panic!("Didn't get an AnimeFile!") },
@@ -341,7 +344,7 @@ fn main() {
         let path = Path::new(&dir[..]);
         if path.is_dir() {
             match path.to_str() {
-                Some(p) => dirs_to_search.push(String::from_str(p)),
+                Some(p) => dirs_to_search.push(p.to_owned()),
                 None    => panic!("Unable to convert Path to str: {:?}", path),
             }
         } else {
@@ -436,7 +439,7 @@ fn parse_user_input(input: &String, files_to_consider_len: usize) -> Result<Vec<
     }
 
     if result.len() == 0 {
-        Err(String::from_str("No selection(s) made."))
+        Err("No selection(s) made.".to_owned())
     } else {
         Ok(result)
     }
@@ -447,7 +450,7 @@ fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String
     let max_index = files_to_consider_len as u64;
 
     if input == "c" || input == "C" {
-        result.push(String::from_str("c"));
+        result.push("c".to_owned());
         return Ok(result);
     }
 
@@ -456,11 +459,11 @@ fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String
         let caps = range_re.captures(input).unwrap();
         let mut low = match u64::from_str(caps.at(1).unwrap()) {
             Ok(u)  => u,
-            Err(e) => return Err(String::from_str(e.description())),
+            Err(e) => return Err(e.description().to_owned()),
         };
         let mut high = match u64::from_str(caps.at(2).unwrap()) {
             Ok(u)  => u,
-            Err(e) => return Err(String::from_str(e.description())),
+            Err(e) => return Err(e.description().to_owned()),
         };
         if low > high {
             mem::swap(&mut low, &mut high);
@@ -481,7 +484,7 @@ fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String
             Err(_) => { },
         }
 
-        Ok(vec!(String::from_str(input)))
+        Ok(vec!(input.to_owned()))
     }
 }
 
