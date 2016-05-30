@@ -1,19 +1,22 @@
 #![feature(collections)]
-#![feature(core)]
-#![feature(path_ext)]
 #![feature(plugin)]
 
 #![plugin(regex_macros)]
 extern crate regex;
 
+#[macro_use]
 extern crate clap;
 #[cfg(not(test))] use clap::{Arg, App};
 
 extern crate glob;
+use glob::Pattern;
 
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+
+extern crate ansi_term;
+use ansi_term::Colour::{Green, Red, Yellow, Blue};
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -27,7 +30,6 @@ use std::thread;
 
 // Traits
 use std::error::Error;
-use std::fs::PathExt;
 use std::io::Write;
 
 extern crate collections;
@@ -84,7 +86,7 @@ impl AnimeFile {
     pub fn new(file: String) -> Option<AnimeFile> {
         // (?:Ep|S\d+x?E)((?:C|S|T)?)(\d+)
         let re = regex!(r"^.*/(?P<title>.*) - (?:Ep|S(?P<season>\d+)x?E)(?P<type>(?:C|S|T|O)?)(?P<episode>\d+)(?:v(?P<version>\d+))?(?: \[(?P<media>.+?)\]\[(?P<width>\d+)x(?P<height>\d+))?");
-        let captures = match re.captures(&file[..]) {
+        let captures = match re.captures(&file) {
             Some(c) => { c },
             None    => { return None; },
         };
@@ -313,22 +315,16 @@ fn animefile_sets_parts_for_version() {
 fn main() {
     env_logger::init().unwrap();
 
-    let version = format!("{}.{}.{}{}",
-                          env!("CARGO_PKG_VERSION_MAJOR"),
-                          env!("CARGO_PKG_VERSION_MINOR"),
-                          env!("CARGO_PKG_VERSION_PATCH"),
-                          option_env!("CARGO_PKG_VERSION_PRE").unwrap_or(""));
-
     let matches = App::new("anime-dupe-finder")
-        .version(&version[..])
+        .version(crate_version!())
         .author("Jacob Helwig <jacob@technosorcery.net>")
         .about("Find duplicates in an organized anime collection")
-        .arg(Arg::new("directory")
+        .arg(Arg::with_name("directory")
              .help("Directory to recursively search for duplicates.")
              .multiple(true)
              .index(1)
              .required(true))
-        .arg(Arg::new("interactive")
+        .arg(Arg::with_name("interactive")
              .short("i")
              .long("interactive")
              .help("Ask which file(s) to keep from each set of duplicates, and delete the rest."))
@@ -337,11 +333,12 @@ fn main() {
     let dirs = matches.values_of("directory").unwrap();
     let interactive_mode = matches.is_present("interactive");
 
-    info!("Dirs to check: {:?}", dirs);
+    // Need #[derive(Debug)] for clap::args::arg_matches::Values<'_>
+    //info!("Dirs to check: {:?}", dirs);
 
     let mut dirs_to_search = Vec::new();
     for dir in dirs {
-        let path = Path::new(&dir[..]);
+        let path = Path::new(&dir);
         if path.is_dir() {
             match path.to_str() {
                 Some(p) => dirs_to_search.push(p.to_owned()),
@@ -365,12 +362,12 @@ fn main() {
         let episodes_with_dupes = grouped_files.iter().filter(|g| g.len() > 1).enumerate();
         for (index, episode_files) in episodes_with_dupes {
             if index == 0 {
-                println!("Found episodes with dupes in {}:", current_dir);
+                println!("{} {}:", Yellow.paint("Found episodes with dupes in"), current_dir);
             }
             println!("  {:?}:", episode_files[0].episode);
-            let mut i = 0;
+            let mut i = 1;
             for file in episode_files.iter() {
-                println!("    {}) {}", i, file.file_name);
+                println!("    {} {}", Blue.bold().paint(format!("{})", i)), file.file_name);
                 i += 1;
             }
             if interactive_mode {
@@ -381,12 +378,12 @@ fn main() {
 }
 
 fn prompt_and_remove_files(files_to_consider: &Vec<AnimeFile>) {
-    let mut commands;
+    let commands;
 
     loop {
         let mut user_input = String::new();
 
-        print!("Select file(s) to keep ('c' to skip group): ");
+        print!("    {}", Green.bold().paint("Select file(s) to keep ('c' to skip group): "));
         io::stdout().flush().ok().expect("Could not flush stdout");
 
         let parsed_input = match io::stdin().read_line(&mut user_input) {
@@ -400,7 +397,7 @@ fn prompt_and_remove_files(files_to_consider: &Vec<AnimeFile>) {
                 break;
             },
             Err(e) => {
-                println!("Invalid selection: {}", e);
+                println!("      {} {}", Red.paint("Invalid selection:"), e);
                 continue;
             },
         }
@@ -409,16 +406,16 @@ fn prompt_and_remove_files(files_to_consider: &Vec<AnimeFile>) {
 
     debug!("Commands: {:?}", commands);
     let mut files_to_remove = files_to_consider.clone();
-    commands.sort();
-    commands.iter_mut().reverse_in_place();
-    for command in commands {
+    // We need to process the commands in reverse order, so we're removing things from the Vec from
+    // the tail (which keeps the indexes stable).
+    for command in commands.iter().rev() {
         debug!("Executing command: {}", command);
         if command == "c" { return; }
-        files_to_remove.remove(usize::from_str(&command[..]).unwrap());
+        files_to_remove.remove(usize::from_str(&command).unwrap() - 1);
     }
     for file in files_to_remove {
         match fs::remove_file(&file.file_name) {
-            Ok(_)  => println!("Removed: {}", file.file_name),
+            Ok(_)  => println!("      {} {}", Red.bold().paint("Removed:"), file.file_name),
             Err(e) => panic!("Failed to remove {}: {}", file.file_name, e),
         }
     }
@@ -433,7 +430,7 @@ fn parse_user_input(input: &String, files_to_consider_len: usize) -> Result<Vec<
         let input_command = cap.at(1).unwrap_or("");
         debug!("Matched: {:?}", input_command);
         match expand_ranges(input_command, files_to_consider_len) {
-            Ok(r)  => result.push_all(&r),
+            Ok(r)  => result.extend_from_slice(&r),
             Err(e) => return Err(e),
         }
     }
@@ -447,7 +444,7 @@ fn parse_user_input(input: &String, files_to_consider_len: usize) -> Result<Vec<
 
 fn expand_ranges(input: &str, files_to_consider_len: usize) -> Result<Vec<String>, String> {
     let mut result = Vec::new();
-    let max_index = files_to_consider_len as u64;
+    let max_index = (files_to_consider_len + 1) as u64;
 
     if input == "c" || input == "C" {
         result.push("c".to_owned());
@@ -539,7 +536,7 @@ fn scan_dirs(dirs_to_search: Vec<String>, tx: Sender<(String, Vec<AnimeFile>)>) 
         match new_dirs {
             None       => { },
             Some(dirs) => {
-                search_dir_queue.push_all(&dirs[..]);
+                search_dir_queue.extend_from_slice(&dirs);
                 search_dir_queue.sort();
                 search_dir_queue.dedup();
             },
@@ -560,20 +557,24 @@ fn scan_dir(dir: &String) -> (Option<Vec<String>>, Option<Vec<AnimeFile>>) {
     let mut new_dirs  = Vec::new();
     let mut new_files = Vec::new();
 
-    let glob_str = match Path::new(&dir[..]).join("*").into_os_string().into_string() {
+    let glob_str = match Path::new(&Pattern::escape(&dir)).join("*").into_os_string().into_string() {
         Ok(s)  => s,
         Err(e) => panic!("Unable to get a string of {:?}", e),
     };
-    for entry in glob::glob(&glob_str[..]).unwrap() {
+    debug!("Listing: {}", glob_str);
+    for entry in glob::glob(&glob_str).unwrap() {
+        debug!("Entry: {:?}", entry);
         let path = match entry {
             Ok(p)  => p,
             Err(e) => panic!("Unable to process glob match: {}", e),
         };
 
-        debug!("Found: {}", path.display());
+        info!("Found: {}", path.display());
         if path.is_dir() {
+            debug!("Adding directory to scan.");
             new_dirs.push(path);
         } else if path.is_file() {
+            debug!("Processing file");
             let path_string = match path.clone().into_os_string().into_string() {
                 Ok(s)  => { s },
                 Err(e) => {
@@ -583,7 +584,7 @@ fn scan_dir(dir: &String) -> (Option<Vec<String>>, Option<Vec<AnimeFile>>) {
                 },
             };
 
-            match re.captures(&path_string[..]) {
+            match re.captures(&path_string) {
                 Some(_) => { /* Nothing to do: Support file */ },
                 None    => {
                     let anime_file = match AnimeFile::new(path_string.clone()) {

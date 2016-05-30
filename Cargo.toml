@@ -11,8 +11,13 @@ readme = "README.md"
 
 [dependencies]
 glob = "*"
-clap = "*"
 regex = "*"
 regex_macros = "*"
 log = "*"
 env_logger = "*"
+ansi_term = "*"
+
+[dependencies.clap]
+version = "*"
+default-features = false
+features = [ "suggestions", "color" ]
